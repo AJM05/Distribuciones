@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-width=1.0">
+    <title>Simulador de Distribuciones de Probabilidad</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { 
+            font-family: sans-serif; 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #f4f6f8; 
+            color: #333;
+        }
+        .container { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+            min-height: 500px;
+        }
+        
+        /* Cabecera común */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #009CA6;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        h2 { color: #002B54; margin: 0; }
+        .back-btn {
+            background-color: #e2e8f0;
+            color: #002B54;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        .back-btn:hover { background-color: #cbd5e1; }
+
+        /* Pantalla de Inicio (Landing) */
+        #landing-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 0;
+        }
+        .landing-title {
+            font-size: 1.2em;
+            color: #555;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        .card-container {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .mode-card {
+            background: white;
+            border: 2px solid #009CA6;
+            border-radius: 12px;
+            padding: 40px 30px;
+            width: 250px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .mode-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,156,166,0.2);
+            background-color: #f0fbfc;
+        }
+        .mode-card h3 {
+            color: #002B54;
+            font-size: 1.4em;
+            margin-top: 0;
+        }
+        .mode-card p {
+            color: #666;
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+
+        /* Pantalla del Simulador */
+        .layout {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .layout { grid-template-columns: 1fr; }
+        }
+        .panel {
+            background-color: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+        .panel h3 { margin-top: 0; color: #002B54; font-size: 1.1em; }
+        .control-group { margin-bottom: 15px; }
+        .control-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; font-size: 0.9em; }
+        .control-group input, .control-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .result-box {
+            background-color: #009CA6;
+            color: white;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .result-label { font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px; }
+        .result-value { font-size: 1.8em; font-weight: bold; margin-top: 5px; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2 id="main-title">Laboratorio de Distribuciones</h2>
+        <button id="btnVolver" class="back-btn hidden" onclick="mostrarInicio()">← Volver al Menú</button>
+    </div>
+    
+    <!-- PANTALLA 1: SELECCIÓN DE MODO -->
+    <div id="landing-screen">
+        <div class="landing-title">
+            Selecciona la naturaleza de la variable aleatoria con la que deseas trabajar.
+        </div>
+        <div class="card-container">
+            <div class="mode-card" onclick="iniciarSimulador('continuas')">
+                <h3>Continuas</h3>
+                <p>Variables que pueden tomar cualquier valor real en un intervalo (ej. tiempo, dinero, peso).</p>
+                <div style="margin-top: 15px; font-size: 0.8em; color: #009CA6; font-weight: bold;">
+                    Normal · Log-Normal · t-Student · Exponencial · Gamma
+                </div>
+            </div>
+            <div class="mode-card" onclick="iniciarSimulador('discretas')">
+                <h3>Discretas</h3>
+                <p>Variables que solo pueden tomar valores aislados o enteros (ej. recuentos, números de eventos).</p>
+                <div style="margin-top: 15px; font-size: 0.8em; color: #009CA6; font-weight: bold;">
+                    Bernoulli · Binomial · Poisson
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA 2: SIMULADOR -->
+    <div id="simulator-screen" class="hidden layout">
+        <!-- Panel Izquierdo: Controles -->
+        <div>
+            <div class="panel">
+                <h3>1. Configurar Distribución</h3>
+                <div class="control-group">
+                    <label>Tipo de Distribución</label>
+                    <select id="distType" onchange="cambiarDistribucion(true)">
+                        <!-- Opciones generadas por JS -->
+                    </select>
+                </div>
+                
+                <div class="control-group" id="groupP1">
+                    <label id="lblP1">Parámetro 1</label>
+                    <input type="number" id="valP1" value="0" step="0.1" oninput="actualizarGrafico()">
+                </div>
+                
+                <div class="control-group" id="groupP2">
+                    <label id="lblP2">Parámetro 2</label>
+                    <input type="number" id="valP2" value="1" min="0.1" step="0.1" oninput="actualizarGrafico()">
+                </div>
+                
+                <div class="control-group hidden" id="groupP3">
+                    <label id="lblP3">Parámetro 3</label>
+                    <input type="number" id="valP3" value="5" min="1" step="1" oninput="actualizarGrafico()">
+                </div>
+            </div>
+
+            <div class="panel" style="margin-top: 20px;">
+                <h3>2. Calcular Evento</h3>
+                <div class="control-group">
+                    <label>Tipo de Evento</label>
+                    <select id="eventType" onchange="cambiarEvento()">
+                        <!-- Opciones generadas por JS -->
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>Valor 'a'</label>
+                    <input type="number" id="valA" value="-1" step="0.1" oninput="actualizarGrafico()">
+                </div>
+
+                <div class="control-group hidden" id="groupB">
+                    <label>Valor 'b'</label>
+                    <input type="number" id="valB" value="1" step="0.1" oninput="actualizarGrafico()">
+                </div>
+
+                <div class="result-box">
+                    <div class="result-label">Probabilidad P(Evento)</div>
+                    <div class="result-value" id="probResult">0.00%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Derecho: Gráfico -->
+        <div class="panel" style="display: flex; flex-direction: column; justify-content: center;">
+            <canvas id="mainChart" width="100%" height="80"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    let chart;
+    let currentMode = 'continuas'; 
+
+    // --- Base de Datos de Distribuciones ---
+    const distribuciones = {
+        continuas: {
+            normal:      { name: 'Normal', p1: 'Media (μ)', v1: 0, p2: 'Desv. Típica (σ)', v2: 1, p3: null, v3: 0 },
+            lognormal:   { name: 'Log-Normal', p1: 'Media Log (μ)', v1: 0, p2: 'Desv. Log (σ)', v2: 0.5, p3: null, v3: 0 },
+            tstudent:    { name: 't-Student', p1: 'Localización (μ)', v1: 0, p2: 'Escala (σ)', v2: 1, p3: 'Grados Lib. (df)', v3: 5 },
+            exponential: { name: 'Exponencial', p1: 'Tasa (λ)', v1: 1, p2: null, v2: 0, p3: null, v3: 0 },
+            gamma_dist:  { name: 'Gamma', p1: 'Forma (k o α)', v1: 2, p2: 'Escala (θ o β)', v2: 2, p3: null, v3: 0 }
+        },
+        discretas: {
+            bernoulli:   { name: 'Bernoulli', p1: 'Probabilidad (p)', v1: 0.5, p2: null, v2: 0, p3: null, v3: 0 },
+            binomial:    { name: 'Binomial', p1: 'Ensayos (n)', v1: 10, p2: 'Probabilidad (p)', v2: 0.5, p3: null, v3: 0 },
+            poisson:     { name: 'Poisson', p1: 'Tasa (λ)', v1: 5, p2: null, v2: 0, p3: null, v3: 0 }
+        }
+    };
+
+    // --- Funciones Matemáticas (Núcleo) ---
+    function logFact(n) {
+        if (n === 0 || n === 1) return 0;
+        let res = 0;
+        for (let i = 2; i <= n; i++) res += Math.log(i);
+        return res;
+    }
+    function gamma(z) {
+        let g = 7;
+        let C = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278223242, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+        if (z < 0.5) return Math.PI / (Math.sin(Math.PI * z) * gamma(1 - z));
+        z -= 1;
+        let x = C[0];
+        for (let i = 1; i < g + 2; i++) x += C[i] / (z + i);
+        let t = z + g + 0.5;
+        return Math.sqrt(2 * Math.PI) * Math.pow(t, z + 0.5) * Math.exp(-t) * x;
+    }
+    function pdfNormal(x, mu, sigma) { return Math.exp(-0.5 * Math.pow((x - mu) / sigma, 2)) / (sigma * Math.sqrt(2 * Math.PI)); }
+    function pdfLogNormal(x, mu, sigma) {
+        if (x <= 0) return 0;
+        return Math.exp(-0.5 * Math.pow((Math.log(x) - mu) / sigma, 2)) / (x * sigma * Math.sqrt(2 * Math.PI));
+    }
+    function pdfTStudent(x, mu, sigma, df) {
+        let t = (x - mu) / sigma;
+        let num = gamma((df + 1) / 2);
+        let den = Math.sqrt(df * Math.PI) * gamma(df / 2);
+        let base = Math.pow(1 + (t * t) / df, -(df + 1) / 2);
+        return (num / den) * base * (1 / sigma);
+    }
+    function pdfExponential(x, lambda) { return x >= 0 ? lambda * Math.exp(-lambda * x) : 0; }
+    function pdfGamma(x, k, theta) {
+        if (x <= 0) return 0;
+        return (Math.pow(x, k - 1) * Math.exp(-x / theta)) / (Math.pow(theta, k) * gamma(k));
+    }
+    function pmfBernoulli(x, p) {
+        if (x === 0) return 1 - p;
+        if (x === 1) return p;
+        return 0;
+    }
+    function pmfBinomial(x, n, p) {
+        if (x < 0 || x > n || !Number.isInteger(x)) return 0;
+        let logComb = logFact(n) - logFact(x) - logFact(n - x);
+        return Math.exp(logComb + x * Math.log(p) + (n - x) * Math.log(1 - p));
+    }
+    function pmfPoisson(x, lambda) {
+        if (x < 0 || !Number.isInteger(x)) return 0;
+        return Math.exp(x * Math.log(lambda) - lambda - logFact(x));
+    }
+
+    // --- Lógica de Navegación (SPA) ---
+    function mostrarInicio() {
+        document.getElementById('landing-screen').classList.remove('hidden');
+        document.getElementById('simulator-screen').classList.add('hidden');
+        document.getElementById('btnVolver').classList.add('hidden');
+        document.getElementById('main-title').innerText = "Laboratorio de Distribuciones";
+    }
+
+    function iniciarSimulador(modo) {
+        currentMode = modo;
+        
+        document.getElementById('landing-screen').classList.add('hidden');
+        document.getElementById('simulator-screen').classList.remove('hidden');
+        document.getElementById('btnVolver').classList.remove('hidden');
+        
+        let tituloModo = modo === 'continuas' ? "Simulador de Variables Continuas" : "Simulador de Variables Discretas";
+        document.getElementById('main-title').innerText = tituloModo;
+
+        const distSelect = document.getElementById('distType');
+        distSelect.innerHTML = '';
+        const grupoDists = distribuciones[modo];
+        for (const [key, conf] of Object.entries(grupoDists)) {
+            const option = document.createElement('option');
+            option.value = key;
+            option.text = conf.name;
+            distSelect.appendChild(option);
+        }
+
+        const eventSelect = document.getElementById('eventType');
+        eventSelect.innerHTML = `
+            <option value="menor">Menor que (X < a)</option>
+            <option value="mayor">Mayor que (X > a)</option>
+            <option value="entre">Entre dos valores (a < X < b)</option>
+        `;
+        if (modo === 'discretas') {
+            const optIgual = document.createElement('option');
+            optIgual.value = "igual";
+            optIgual.text = "Igual a (X = a)";
+            eventSelect.appendChild(optIgual);
+        }
+
+        cambiarDistribucion(true);
+    }
+
+    // --- Lógica de la Interfaz del Simulador ---
+    function cambiarDistribucion(resetVals = false) {
+        const distType = document.getElementById('distType').value;
+        const conf = distribuciones[currentMode][distType];
+
+        document.getElementById('lblP1').innerText = conf.p1;
+        if (resetVals) document.getElementById('valP1').value = conf.v1;
+
+        if (conf.p2) {
+            document.getElementById('groupP2').classList.remove('hidden');
+            document.getElementById('lblP2').innerText = conf.p2;
+            if (resetVals) document.getElementById('valP2').value = conf.v2;
+        } else {
+            document.getElementById('groupP2').classList.add('hidden');
+        }
+
+        if (conf.p3) {
+            document.getElementById('groupP3').classList.remove('hidden');
+            document.getElementById('lblP3').innerText = conf.p3;
+            if (resetVals) document.getElementById('valP3').value = conf.v3;
+        } else {
+            document.getElementById('groupP3').classList.add('hidden');
+        }
+
+        if (resetVals) {
+            if (distType === 'bernoulli') document.getElementById('valA').value = 0;
+            else if (distType === 'exponential') document.getElementById('valA').value = 1;
+            else if (distType === 'poisson') document.getElementById('valA').value = Math.floor(conf.v1);
+            else if (currentMode === 'continuas') document.getElementById('valA').value = -1;
+            else document.getElementById('valA').value = 1;
+            
+            document.getElementById('eventType').value = 'menor';
+            cambiarEvento();
+        }
+
+        actualizarGrafico();
+    }
+
+    function cambiarEvento() {
+        const eventType = document.getElementById('eventType').value;
+        const groupB = document.getElementById('groupB');
+        if (eventType === 'entre') groupB.classList.remove('hidden');
+        else groupB.classList.add('hidden');
+        actualizarGrafico();
+    }
+
+    function actualizarGrafico() {
+        const distType = document.getElementById('distType').value;
+        const isDiscrete = (currentMode === 'discretas');
+        
+        const p1 = parseFloat(document.getElementById('valP1').value) || 0;
+        const p2 = parseFloat(document.getElementById('valP2').value) || 0;
+        const p3 = parseFloat(document.getElementById('valP3').value) || 0;
+        
+        const eventType = document.getElementById('eventType').value;
+        const a = parseFloat(document.getElementById('valA').value) || 0;
+        const b = parseFloat(document.getElementById('valB').value) || 0;
+
+        let func, minX, maxX, step;
+
+        if (distType === 'normal') {
+            func = (x) => pdfNormal(x, p1, p2 <= 0 ? 0.1 : p2);
+            minX = p1 - 4 * (p2 <= 0 ? 0.1 : p2);
+            maxX = p1 + 4 * (p2 <= 0 ? 0.1 : p2);
+        } else if (distType === 'lognormal') {
+            func = (x) => pdfLogNormal(x, p1, p2 <= 0 ? 0.1 : p2);
+            minX = 0.01;
+            maxX = Math.exp(p1 + 3 * (p2 <= 0 ? 0.1 : p2));
+        } else if (distType === 'tstudent') {
+            func = (x) => pdfTStudent(x, p1, p2 <= 0 ? 0.1 : p2, p3 < 1 ? 1 : p3);
+            minX = p1 - 5 * (p2 <= 0 ? 0.1 : p2);
+            maxX = p1 + 5 * (p2 <= 0 ? 0.1 : p2);
+        } else if (distType === 'exponential') {
+            func = (x) => pdfExponential(x, p1 <= 0 ? 0.1 : p1);
+            minX = 0;
+            maxX = 5 / (p1 <= 0 ? 0.1 : p1);
+        } else if (distType === 'gamma_dist') {
+            func = (x) => pdfGamma(x, p1 <= 0 ? 0.1 : p1, p2 <= 0 ? 0.1 : p2);
+            let mean = p1 * p2;
+            let std = Math.sqrt(p1) * p2;
+            minX = 0;
+            maxX = mean + 4 * std;
+        } else if (distType === 'bernoulli') {
+            func = (x) => pmfBernoulli(x, p1 < 0 ? 0 : (p1 > 1 ? 1 : p1));
+            minX = 0;
+            maxX = 1;
+        } else if (distType === 'binomial') {
+            func = (x) => pmfBinomial(x, Math.floor(p1), p2 < 0 ? 0 : (p2 > 1 ? 1 : p2));
+            minX = 0;
+            maxX = Math.floor(p1);
+        } else if (distType === 'poisson') {
+            func = (x) => pmfPoisson(x, p1 <= 0 ? 0.1 : p1);
+            minX = 0;
+            maxX = Math.ceil(p1 + 4 * Math.sqrt(p1));
+        }
+
+        const labels = [];
+        const dataPdf = [];
+        const dataArea = []; // Utilizamos la misma variable internamente para almacenar las masas o el área.
+        let probabilidad = 0;
+
+        if (isDiscrete) {
+            for (let x = Math.floor(minX); x <= Math.ceil(maxX); x++) {
+                labels.push(x.toString());
+                let y = func(x);
+                
+                let inEventCondition = false;
+                if (eventType === 'menor' && x < a) inEventCondition = true;
+                if (eventType === 'mayor' && x > a) inEventCondition = true;
+                if (eventType === 'entre' && x > a && x < b) inEventCondition = true;
+                if (eventType === 'igual' && x === Math.round(a)) inEventCondition = true;
+
+                if (inEventCondition) {
+                    dataArea.push(y);
+                    probabilidad += y;
+                } else {
+                    dataArea.push(0);
+                    dataPdf.push(y); 
+                }
+            }
+        } else {
+            step = (maxX - minX) / 200;
+            for (let x = minX; x <= maxX; x += step) {
+                labels.push(x.toFixed(2));
+                let y = func(x);
+                dataPdf.push(y);
+
+                let inEventCondition = false;
+                if (eventType === 'menor' && x < a) inEventCondition = true;
+                if (eventType === 'mayor' && x > a) inEventCondition = true;
+                if (eventType === 'entre' && x > a && x < b) inEventCondition = true;
+
+                if (inEventCondition) {
+                    dataArea.push(y);
+                    probabilidad += y * step; 
+                } else {
+                    dataArea.push(null);
+                }
+            }
+        }
+
+        document.getElementById('probResult').innerText = (probabilidad * 100).toFixed(2) + '%';
+        dibujarGrafico(labels, dataPdf, dataArea, isDiscrete);
+    }
+
+    function dibujarGrafico(labels, dataPdf, dataArea, isDiscrete) {
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if (chart) chart.destroy();
+
+        let datasets;
+        if (isDiscrete) {
+            datasets = [
+                {
+                    label: 'Probabilidad del Evento', // Cambio del lenguaje matemático a variable discreta
+                    data: dataArea,
+                    backgroundColor: 'rgba(0, 156, 166, 0.8)', 
+                    borderWidth: 1,
+                    borderColor: '#002B54'
+                },
+                {
+                    label: 'Probabilidad P(X)',
+                    data: dataPdf,
+                    backgroundColor: 'rgba(0, 43, 84, 0.2)', 
+                    borderWidth: 1,
+                    borderColor: '#002B54'
+                }
+            ];
+        } else {
+            datasets = [
+                {
+                    label: 'Área del Evento', // Mantiene el lenguaje de cálculo de área
+                    data: dataArea,
+                    backgroundColor: 'rgba(0, 156, 166, 0.4)',
+                    borderColor: 'transparent',
+                    fill: true,
+                    pointRadius: 0,
+                    tension: 0.4
+                },
+                {
+                    label: 'Densidad f(x)',
+                    data: dataPdf,
+                    borderColor: '#002B54',
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    tension: 0.4
+                }
+            ];
+        }
+
+        chart = new Chart(ctx, {
+            type: isDiscrete ? 'bar' : 'line',
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                animation: false,
+                interaction: { intersect: false, mode: 'index' },
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        title: { display: true, text: isDiscrete ? 'Masa de Probabilidad P(X)' : 'Densidad f(x)' } 
+                    },
+                    x: { 
+                        title: { display: true, text: 'Valor (X)' },
+                        ticks: { maxTicksLimit: 12 }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
